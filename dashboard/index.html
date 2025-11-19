@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Vault SecOps Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 40px 0;
+            background: #f3f4f6;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 24px 28px 32px;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        header h1 span.icon {
+            font-size: 30px;
+        }
+        header .tagline {
+            margin: 2px 0 0;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-pill.ok {
+            background: #ecfdf3;
+            color: #166534;
+        }
+        .status-pill.ko {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        h2 {
+            margin-top: 24px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 14px 16px 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .section-title span.label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+            transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.1s;
+        }
+        button span.icon {
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 7px rgba(37, 99, 235, 0.25);
+        }
+
+        .field-group {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .field-group label {
+            color: #374151;
+            font-weight: 500;
+        }
+        .field-inline {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 7px 10px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            font-size: 13px;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+        }
+
+        #logs {
+            background: #111827;
+            color: #e5e7eb;
+            padding: 10px 12px;
+            border-radius: 8px;
+            height: 260px;
+            overflow-y: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 12px;
+            border: 1px solid #020617;
+        }
+        .log-line {
+            white-space: pre-wrap;
+        }
+        .log-line.info { color: #9ca3af; }
+        .log-line.success { color: #6ee7b7; }
+        .log-line.error { color: #fca5a5; }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+            .container {
+                padding: 18px 16px 24px;
+            }
+            .grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div>
+            <h1><span class="icon">🔐</span>Vault SecOps Dashboard</h1>
+            <p class="tagline">Rotation de secrets & certificats pilotée via Vault</p>
+        </div>
+    </header>
+
+    <div class="status-bar">
+        <div>
+            <div id="status-pill" class="status-pill">
+                <span class="status-dot"></span>
+                <span id="status-text">Checking Vault status...</span>
+            </div>
+        </div>
+        <div class="timestamp" id="status-timestamp">
+            —
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Colonne gauche : actions -->
+        <div class="card">
+            <div class="section-title">
+                <h2>Actions</h2>
+                <span class="label">Pilotage API Flask</span>
+            </div>
+
+            <div class="btn-row" style="margin-bottom: 10px;">
+                <button onclick="rotateSecret()">
+                    <span class="icon">🔄</span>
+                    <span>Rotate MySQL Password</span>
+                </button>
+
+                <button onclick="checkStatus()">
+                    <span class="icon">🔍</span>
+                    <span>Check Status</span>
+                </button>
+            </div>
+
+            <div class="field-group">
+                <label for="cn-input">Génération de certificat</label>
+                <div class="field-inline">
+                    <input id="cn-input" type="text" placeholder="ex : app.local" value="app.local">
+                    <button onclick="generateCert()">
+                        <span class="icon">📜</span>
+                        <span>Generate Certificate</span>
+                    </button>
+                </div>
+                <span style="font-size: 11px; color: #9ca3af;">
+                    Les certificats sont générés via le rôle PKI <code>internal</code>.
+                </span>
+            </div>
+        </div>
+
+        <!-- Colonne droite : logs -->
+        <div class="card">
+            <div class="section-title">
+                <h2>Logs</h2>
+                <span class="label" id="logs-label">Derniers événements</span>
+            </div>
+            <div id="logs"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "http://localhost:5000";
+
+    function addLog(message, level = "info") {
+        const logs = document.getElementById("logs");
+        const time = new Date().toLocaleTimeString();
+        const line = document.createElement("div");
+        line.className = "log-line " + level;
+        line.textContent = `[${time}] ${message}`;
+        logs.prepend(line);
+    }
+
+    function updateStatusUI(connected, timestamp) {
+        const pill = document.getElementById("status-pill");
+        const text = document.getElementById("status-text");
+        const ts = document.getElementById("status-timestamp");
+
+        if (connected) {
+            pill.classList.remove("ko");
+            pill.classList.add("ok");
+            text.textContent = "Vault Connected";
+        } else {
+            pill.classList.remove("ok");
+            pill.classList.add("ko");
+            text.textContent = "Vault Disconnected";
+        }
+
+        ts.textContent = timestamp ? `Last check: ${timestamp}` : "—";
+    }
+
+    function checkStatus() {
+        fetch(API_BASE + "/health")
+            .then(r => r.json())
+            .then(data => {
+                updateStatusUI(data.vault_connected, data.timestamp);
+                addLog("Status checked (vault_connected=" + data.vault_connected + ")", "info");
+            })
+            .catch(e => {
+                updateStatusUI(false, null);
+                addLog("Error checking status: " + e, "error");
+            });
+    }
+
+    function rotateSecret() {
+        addLog("Starting rotation for secret/mysql...", "info");
+        fetch(API_BASE + "/rotate-secret", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({path: "mysql"})
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === "success") {
+                    addLog("✅ Password rotated for " + (data.path || "mysql"), "success");
+                } else {
+                    addLog("❌ Rotation error: " + (data.message || "unknown error"), "error");
+                }
+            })
+            .catch(e => {
+                addLog("❌ Rotation failed: " + e, "error");
+            });
+    }
+
+    function generateCert() {
+        const input = document.getElementById("cn-input");
+        const cn = (input.value || "").trim();
+        if (!cn) {
+            addLog("No Common Name provided, aborting certificate generation.", "error");
+            return;
+        }
+
+        addLog("Generating certificate for " + cn + "...", "info");
+        fetch(API_BASE + "/generate-cert", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({common_name: cn})
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === "success") {
+                    addLog("✅ Certificate generated (" + data.serial_number + ")", "success");
+                } else {
+                    addLog("❌ Generation error: " + data.message, "error");
+                }
+            })
+            .catch(e => {
+                addLog("❌ Generation failed: " + e, "error");
+            });
+    }
+
+    // Check initial status + refresh every 10s
+    checkStatus();
+    setInterval(checkStatus, 10000);
+</script>
+</body>
+</html>

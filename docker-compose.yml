@@ -1,0 +1,61 @@
+
+services:
+  # Vault en mode dev pour aller vite
+  vault:
+    image: vault:1.13.3
+    container_name: vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "root-token-demo"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_TOKEN: "root-token-demo"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./vault/scripts:/scripts
+      - ./vault/policies:/policies
+    networks:
+      - secops
+
+  # MySQL pour tester les rotations
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "oldpassword123"
+      MYSQL_DATABASE: "demo"
+    ports:
+      - "3306:3306"
+    networks:
+      - secops
+
+  api:
+    build: ./api
+    container_name: api
+    ports:
+      - "5000:5000"
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "root-token-demo"
+    depends_on:
+      - vault
+    networks:
+      - secops
+  
+  dashboard:
+    image: nginx:alpine
+    container_name: dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    networks:
+      - secops
+
+networks:
+  secops:
+    driver: bridge
+
+
