@@ -32,7 +32,7 @@ services:
       - secops
 
   api:
-    build: ./api
+    build: ./api              
     container_name: api
     ports:
       - "5000:5000"
@@ -41,18 +41,22 @@ services:
       VAULT_TOKEN: "root-token-demo"
     depends_on:
       - vault
-    networks:
-      - secops
-  
-  dashboard:
-    image: nginx:alpine
-    container_name: dashboard
-    ports:
-      - "8080:80"
+      - mysql
     volumes:
-      - ./dashboard:/usr/share/nginx/html:ro
+      - ./ansible:/ansible:ro   
+      - ./logs:/logs            
     networks:
       - secops
+    
+  dashboard:
+      image: nginx:alpine
+      container_name: dashboard
+      ports:
+        - "8080:80"
+      volumes:
+        - ./dashboard:/usr/share/nginx/html:ro
+      networks:
+        - secops
 
 networks:
   secops:

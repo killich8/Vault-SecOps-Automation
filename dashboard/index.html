@@ -48,7 +48,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             padding: 10px 14px;
             border-radius: 10px;
             background: #f9fafb;
@@ -81,10 +81,32 @@
             font-size: 12px;
             color: #9ca3af;
         }
-        h2 {
-            margin-top: 24px;
-            margin-bottom: 10px;
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .kpi-card {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+        }
+        .kpi-title {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .kpi-value {
             font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .kpi-sub {
+            font-size: 11px;
+            color: #9ca3af;
         }
 
         .grid {
@@ -116,6 +138,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+            margin-bottom: 10px;
         }
 
         button {
@@ -203,6 +226,9 @@
             .grid {
                 grid-template-columns: minmax(0, 1fr);
             }
+            .kpi-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
     </style>
 </head>
@@ -211,7 +237,7 @@
     <header>
         <div>
             <h1><span class="icon">🔐</span>Vault SecOps Dashboard</h1>
-            <p class="tagline">Rotation de secrets & certificats pilotée via Vault</p>
+            <p class="tagline">Rotation de secrets & certificats via Vault + Ansible</p>
         </div>
     </header>
 
@@ -219,11 +245,30 @@
         <div>
             <div id="status-pill" class="status-pill">
                 <span class="status-dot"></span>
-                <span id="status-text">Checking Vault status...</span>
+                <span id="status-text">Checking Vault & services...</span>
             </div>
         </div>
         <div class="timestamp" id="status-timestamp">
             —
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-title">🔄 Dernière rotation (Ansible)</div>
+            <div class="kpi-value" id="last-rotation">—</div>
+            <div class="kpi-sub" id="rotation-timer">—</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">📜 Certificats générés (session)</div>
+            <div class="kpi-value" id="cert-count">0</div>
+            <div class="kpi-sub">Certificats déployés via Ansible</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">📊 Opérations (session)</div>
+            <div class="kpi-value" id="ops-count">0</div>
+            <div class="kpi-sub">Rotations & déploiements</div>
         </div>
     </div>
 
@@ -232,32 +277,49 @@
         <div class="card">
             <div class="section-title">
                 <h2>Actions</h2>
-                <span class="label">Pilotage API Flask</span>
+                <span class="label">Pilotage API (Ansible)</span>
             </div>
 
-            <div class="btn-row" style="margin-bottom: 10px;">
-                <button onclick="rotateSecret()">
+            <div class="btn-row">
+                <button onclick="rotateViaAnsible()">
                     <span class="icon">🔄</span>
-                    <span>Rotate MySQL Password</span>
+                    <span>Rotate MySQL (Ansible)</span>
                 </button>
 
-                <button onclick="checkStatus()">
-                    <span class="icon">🔍</span>
-                    <span>Check Status</span>
+                <button onclick="runHealthCheck()">
+                    <span class="icon">💚</span>
+                    <span>Health Check (Ansible)</span>
                 </button>
             </div>
 
             <div class="field-group">
-                <label for="cn-input">Génération de certificat</label>
+                <label for="cn-input">Génération de certificat (Ansible)</label>
                 <div class="field-inline">
                     <input id="cn-input" type="text" placeholder="ex : app.local" value="app.local">
-                    <button onclick="generateCert()">
+                    <button onclick="deployCertAnsible()">
                         <span class="icon">📜</span>
-                        <span>Generate Certificate</span>
+                        <span>Deploy Certificate</span>
                     </button>
                 </div>
                 <span style="font-size: 11px; color: #9ca3af;">
-                    Les certificats sont générés via le rôle PKI <code>internal</code>.
+                    Utilise le playbook <code>deploy-cert.yml</code> via l'endpoint <code>/ansible/deploy-cert</code>.
+                </span>
+            </div>
+
+            <div class="field-group" style="margin-top: 12px;">
+                <label>Automatisation</label>
+                <div class="btn-row">
+                    <button onclick="runAutomationSequence()">
+                        <span class="icon">⚡</span>
+                        <span>Full Automation</span>
+                    </button>
+                    <button onclick="clearLogs()">
+                        <span class="icon">🗑️</span>
+                        <span>Clear Logs</span>
+                    </button>
+                </div>
+                <span style="font-size: 11px; color: #9ca3af;">
+                    Enchaîne Health → Rotation → Certificat.
                 </span>
             </div>
         </div>
@@ -276,6 +338,10 @@
 <script>
     const API_BASE = "http://localhost:5000";
 
+    let lastRotation = null;
+    let opsCount = 0;
+    let certCount = 0;
+
     function addLog(message, level = "info") {
         const logs = document.getElementById("logs");
         const time = new Date().toLocaleTimeString();
@@ -283,89 +349,150 @@
         line.className = "log-line " + level;
         line.textContent = `[${time}] ${message}`;
         logs.prepend(line);
+
+        // garder max 80 lignes
+        while (logs.children.length > 80) {
+            logs.removeChild(logs.lastChild);
+        }
     }
 
-    function updateStatusUI(connected, timestamp) {
+    function updateStatusUI(services, timestamp) {
         const pill = document.getElementById("status-pill");
         const text = document.getElementById("status-text");
         const ts = document.getElementById("status-timestamp");
 
-        if (connected) {
+        const allUp = services &&
+            services.vault === true &&
+            services.api === true &&
+            services.mysql === true;
+
+        if (allUp) {
             pill.classList.remove("ko");
             pill.classList.add("ok");
-            text.textContent = "Vault Connected";
+            text.textContent = "All services UP (Vault / API / MySQL)";
         } else {
             pill.classList.remove("ok");
             pill.classList.add("ko");
-            text.textContent = "Vault Disconnected";
+            text.textContent = "Some services are DOWN";
         }
 
-        ts.textContent = timestamp ? `Last check: ${timestamp}` : "—";
+        if (timestamp) {
+            ts.textContent = `Last health (Ansible): ${timestamp}`;
+        } else {
+            ts.textContent = "—";
+        }
     }
 
-    function checkStatus() {
-        fetch(API_BASE + "/health")
-            .then(r => r.json())
-            .then(data => {
-                updateStatusUI(data.vault_connected, data.timestamp);
-                addLog("Status checked (vault_connected=" + data.vault_connected + ")", "info");
-            })
-            .catch(e => {
-                updateStatusUI(false, null);
-                addLog("Error checking status: " + e, "error");
+    function updateKPIs() {
+        // Dernière rotation
+        const lastRotEl = document.getElementById("last-rotation");
+        const timerEl = document.getElementById("rotation-timer");
+        if (lastRotation) {
+            lastRotEl.textContent = lastRotation.toLocaleTimeString();
+            const now = new Date();
+            const diff = Math.floor((now - lastRotation) / 1000);
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            timerEl.textContent = `${hours}h ${minutes}m ${seconds}s ago`;
+        } else {
+            lastRotEl.textContent = "—";
+            timerEl.textContent = "Aucune rotation enregistrée";
+        }
+
+        document.getElementById("ops-count").textContent = opsCount;
+        document.getElementById("cert-count").textContent = certCount;
+    }
+
+    async function runHealthCheck() {
+        addLog("Running Ansible health check...", "info");
+        try {
+            const res = await fetch(`${API_BASE}/ansible/health`);
+            const data = await res.json();
+
+            if (data.status === "success") {
+                updateStatusUI(data.services, data.timestamp);
+                addLog("Health check completed (Ansible)", "success");
+            } else {
+                addLog("Health check error: " + (data.message || "Unknown error"), "error");
+            }
+        } catch (e) {
+            addLog("Health check failed: " + e.message, "error");
+        }
+    }
+
+    async function rotateViaAnsible() {
+        addLog("Starting MySQL rotation via Ansible...", "info");
+        try {
+            const res = await fetch(`${API_BASE}/ansible/rotate`, {
+                method: "POST",
             });
+            const data = await res.json();
+
+            if (data.status === "success") {
+                addLog("✅ MySQL password rotated via Ansible", "success");
+                lastRotation = new Date();
+                opsCount += 1;
+                updateKPIs();
+            } else {
+                addLog("Rotation failed: " + (data.message || "Unknown error"), "error");
+            }
+        } catch (e) {
+            addLog("Rotation error: " + e.message, "error");
+        }
     }
 
-    function rotateSecret() {
-        addLog("Starting rotation for secret/mysql...", "info");
-        fetch(API_BASE + "/rotate-secret", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({path: "mysql"})
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === "success") {
-                    addLog("✅ Password rotated for " + (data.path || "mysql"), "success");
-                } else {
-                    addLog("❌ Rotation error: " + (data.message || "unknown error"), "error");
-                }
-            })
-            .catch(e => {
-                addLog("❌ Rotation failed: " + e, "error");
-            });
-    }
-
-    function generateCert() {
+    async function deployCertAnsible() {
         const input = document.getElementById("cn-input");
         const cn = (input.value || "").trim();
         if (!cn) {
-            addLog("No Common Name provided, aborting certificate generation.", "error");
+            addLog("No Common Name provided, aborting deploy-cert", "error");
             return;
         }
 
-        addLog("Generating certificate for " + cn + "...", "info");
-        fetch(API_BASE + "/generate-cert", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({common_name: cn})
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === "success") {
-                    addLog("✅ Certificate generated (" + data.serial_number + ")", "success");
-                } else {
-                    addLog("❌ Generation error: " + data.message, "error");
-                }
-            })
-            .catch(e => {
-                addLog("❌ Generation failed: " + e, "error");
+        addLog(`Deploying certificate via Ansible for ${cn}...`, "info");
+        try {
+            const res = await fetch(`${API_BASE}/ansible/deploy-cert`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({common_name: cn}),
             });
+            const data = await res.json();
+
+            if (data.status === "success") {
+                addLog(`✅ Certificate deployed for ${cn}`, "success");
+                certCount += 1;
+                opsCount += 1;
+                updateKPIs();
+            } else {
+                addLog("Certificate deployment failed: " + (data.message || "Unknown error"), "error");
+            }
+        } catch (e) {
+            addLog("Error deploying certificate: " + e.message, "error");
+        }
     }
 
-    // Check initial status + refresh every 10s
-    checkStatus();
-    setInterval(checkStatus, 10000);
+    async function runAutomationSequence() {
+        addLog("Starting full automation sequence (Health → Rotate → Cert)...", "info");
+        await runHealthCheck();
+        await new Promise(r => setTimeout(r, 700));
+        await rotateViaAnsible();
+        await new Promise(r => setTimeout(r, 700));
+        await deployCertAnsible();
+        addLog("Automation sequence completed.", "success");
+    }
+
+    function clearLogs() {
+        const logs = document.getElementById("logs");
+        logs.innerHTML = "";
+        addLog("Logs cleared", "info");
+    }
+
+    // Init
+    addLog("Dashboard initialized", "info");
+    updateKPIs();
+    runHealthCheck();
+    setInterval(updateKPIs, 1000); // met à jour le timer de rotation
 </script>
 </body>
 </html>

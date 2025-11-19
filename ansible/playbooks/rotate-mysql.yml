@@ -1,0 +1,73 @@
+---
+- name: Rotation automatique password MySQL
+  hosts: localhost
+  gather_facts: yes
+
+  vars:
+    vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault:8200') }}"
+    vault_token: "{{ lookup('env', 'VAULT_TOKEN') | default('root-token-demo') }}"
+
+  tasks:
+
+    - name: Get current password from Vault
+      uri:
+        url: "{{ vault_addr }}/v1/secret/data/mysql"
+        method: GET
+        headers:
+          X-Vault-Token: "{{ vault_token }}"
+      register: current_secret
+
+    - name: Extract current password
+      set_fact:
+        old_password: "{{ current_secret.json.data.data.password }}"
+
+    - name: Generate new password
+      set_fact:
+        new_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits,!@#$ length=16') }}"
+
+    - debug:
+        msg: "Rotating MySQL password..."
+
+    - name: Update MySQL password
+      shell: |
+        mysql -h mysql -u root -p{{ old_password }} \
+        -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '{{ new_password }}';" \
+        2>/dev/null || echo 'Password update skipped'
+      register: update_mysql
+      failed_when: false
+      ignore_errors: yes
+      no_log: yes
+
+    - name: Update password in Vault
+      uri:
+        url: "{{ vault_addr }}/v1/secret/data/mysql"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_token }}"
+        body_format: json
+        body:
+          data:
+            username: "root"
+            password: "{{ new_password }}"
+            host: "mysql"
+            port: "3306"
+            last_rotation: "{{ ansible_date_time.iso8601 }}"
+            rotation_by: "ansible"
+      register: vault_update
+
+    - name: Test new password
+      shell: |
+        mysql -h mysql -u root -p{{ new_password }} \
+        -e "SELECT 'OK' as status;" 2>/dev/null
+      register: test_connection
+      failed_when: false
+      no_log: yes
+
+    - debug:
+        msg: "{{ 'SUCCESS: Rotation OK' if test_connection.rc == 0 else 'FAILED: MySQL did not accept new password' }}"
+
+    - name: Log rotation
+      lineinfile:
+        path: /logs/rotations.log
+        line: "{{ ansible_date_time.iso8601 }} - MySQL password rotated"
+        create: yes

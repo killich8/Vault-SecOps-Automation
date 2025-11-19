@@ -1,0 +1,86 @@
+---
+- name: Génération et déploiement certificat TLS
+  hosts: localhost
+  gather_facts: yes
+
+  vars:
+    vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault:8200') }}"
+    vault_token: "{{ lookup('env', 'VAULT_TOKEN') | default('root-token-demo') }}"
+    cert_path: "/tmp/certs"
+    default_common_name: "app.local"
+
+  tasks:
+    - name: Normaliser le Common Name et le nom de fichier
+      set_fact:
+        cn: "{{ common_name | default(default_common_name) }}"
+        cert_basename: "{{ (common_name | default(default_common_name)) | regex_replace('\\.local$', '') }}"
+
+    # 1. Créer répertoire pour les certs
+    - name: Create certificate directory
+      file:
+        path: "{{ cert_path }}"
+        state: directory
+        mode: "0755"
+
+    # 2. Générer certificat via Vault PKI
+    - name: Generate certificate from Vault PKI
+      uri:
+        url: "{{ vault_addr }}/v1/pki/issue/internal"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_token }}"
+        body_format: json
+        body:
+          common_name: "{{ cn }}"
+          ttl: "24h"
+      register: cert_response
+
+    # 3. Sauver le certificat
+    - name: Save certificate
+      copy:
+        content: "{{ cert_response.json.data.certificate }}"
+        dest: "{{ cert_path }}/{{ cert_basename }}.crt"
+        mode: "0644"
+
+    - name: Save private key
+      copy:
+        content: "{{ cert_response.json.data.private_key }}"
+        dest: "{{ cert_path }}/{{ cert_basename }}.key"
+        mode: "0600"
+      no_log: yes
+
+    - name: Save CA certificate (if provided)
+      copy:
+        content: "{{ cert_response.json.data.ca_chain[0] }}"
+        dest: "{{ cert_path }}/ca.crt"
+        mode: "0644"
+      when: cert_response.json.data.ca_chain is defined
+
+    # 4. Créer un bundle (cert + CA)
+    - name: Create certificate bundle (cert + CA)
+      shell: |
+        cat {{ cert_path }}/{{ cert_basename }}.crt \
+            {{ cert_path }}/ca.crt \
+            > {{ cert_path }}/{{ cert_basename }}-bundle.pem
+      when: cert_response.json.data.ca_chain is defined
+
+    # 5. Afficher infos certificat
+    - name: Get certificate info with openssl
+      shell: |
+        openssl x509 -in {{ cert_path }}/{{ cert_basename }}.crt \
+          -noout -subject -dates
+      register: cert_info
+
+    - name: Display certificate info
+      debug:
+        msg:
+          - "Certificate generated successfully for {{ cn }}"
+          - "{{ cert_info.stdout_lines }}"
+          - "Serial: {{ cert_response.json.data.serial_number }}"
+
+    # 6. Log
+    - name: Log certificate generation
+      lineinfile:
+        path: /logs/certificates.log
+        line: "{{ ansible_date_time.iso8601 }} - Certificate generated for {{ cn }} - Serial: {{ cert_response.json.data.serial_number }}"
+        create: yes
