@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "=== TESTS JOUR 2 ==="
+echo "=== TESTS ==="
 
 # 1. Test Ansible installation
 echo "1. Check Ansible..."

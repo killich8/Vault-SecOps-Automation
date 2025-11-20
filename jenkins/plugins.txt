@@ -1,0 +1,9 @@
+workflow-aggregator
+git
+credentials
+credentials-binding
+hashicorp-vault-plugin
+generic-webhook-trigger
+ansible
+ansicolor
+timestamper

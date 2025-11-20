@@ -1,0 +1,39 @@
+Started by timer
+Running as SYSTEM
+Building in workspace /var/jenkins_home/jobs/rotate-mysql/workspace
+[workspace] $ /bin/sh -xe /tmp/jenkins13783922324598216412.sh
++ set -e
++ echo === MySQL Password Rotation Job ===
+=== MySQL Password Rotation Job ===
++ date
++ echo Started at: Thu Nov 20 19:42:12 UTC 2025
+Started at: Thu Nov 20 19:42:12 UTC 2025
++ export VAULT_ADDR=http://vault:8200
++ export VAULT_TOKEN=root-token-demo
++ vault kv get -field=password secret/mysql
++ OLD_PASS=QxjCLmfYOms8i/8t
++ echo Old password retrieved
+Old password retrieved
++ openssl rand -base64 12
++ NEW_PASS=lru2xq+8uD1ARNfD
++ echo New password generated
+New password generated
++ date -Iseconds
++ vault kv put secret/mysql password=lru2xq+8uD1ARNfD username=root host=mysql last_rotation=2025-11-20T19:42:12+00:00 rotated_by=jenkins
+== Secret Path ==
+secret/data/mysql
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2025-11-20T19:42:12.785858782Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            18
++ echo Vault updated
+Vault updated
++ mysql --skip-ssl -h mysql -u root -pQxjCLmfYOms8i/8t
+ERROR 1045 (28000): Access denied for user 'root'@'172.22.0.6' (using password: YES)
+Build step 'Execute shell' marked build as failure
+Finished: FAILURE

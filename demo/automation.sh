@@ -9,35 +9,34 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# ---------------------------
-# 1️⃣ Rotation automatique MySQL via Ansible
-# ---------------------------
+# ---------------------------------------
+# Rotation automatique MySQL via Ansible
+# ---------------------------------------
 auto_rotate() {
     log "Starting automatic MySQL password rotation..."
 
     response=$(curl -s -X POST "$API_URL/ansible/rotate")
 
     if echo "$response" | grep -q '"status": "success"'; then
-        log "✅ Rotation successful"
+        log "Rotation successful"
     else
-        log "❌ Rotation failed: $response"
+        log "Rotation failed: $response"
         exit 1
     fi
 }
 
-# ---------------------------
-# 2️⃣ Vérification et création du certificat (via Ansible)
-# ---------------------------
+# -----------------------------------------------------
+# Vérification et création du certificat (via Ansible)
+# -----------------------------------------------------
 check_certs() {
     log "Checking TLS certificates..."
 
-    # Crée le dossier si inexistant
     if [ ! -d "$CERT_DIR" ]; then
         mkdir -p "$CERT_DIR"
         log "Created certificate directory: $CERT_DIR"
     fi
 
-    # Aucun certificat → générer
+    # si aucun certificat on génére un
     if [ ! -f "$CERT_FILE" ]; then
         log "No certificate found. Generating..."
         curl -s -X POST "$API_URL/ansible/deploy-cert" \
@@ -47,7 +46,7 @@ check_certs() {
         return
     fi
 
-    # Certificat plus vieux qu'un jour → renouveler
+    # Certificat plus vieux qu'un jour, on le renouvele
     if find "$CERT_FILE" -mtime +1 | grep -q "$CERT_FILE"; then
         log "Certificate is older than 1 day. Renewing..."
         curl -s -X POST "$API_URL/ansible/deploy-cert" \
@@ -60,7 +59,7 @@ check_certs() {
 }
 
 # ---------------------------
-# 3️⃣ Health Check des services
+# Health Check des services
 # ---------------------------
 health_check() {
     response=$(curl -s "$API_URL/ansible/health")
@@ -69,7 +68,7 @@ health_check() {
 }
 
 # ---------------------------
-# 4️⃣ Menu principal
+# Menu principal
 # ---------------------------
 case "$1" in
     rotate)

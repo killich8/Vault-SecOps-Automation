@@ -35,7 +35,7 @@
           ttl: "24h"
       register: cert_response
 
-    # 3. Sauver le certificat
+    # 3. Save certificat
     - name: Save certificate
       copy:
         content: "{{ cert_response.json.data.certificate }}"
