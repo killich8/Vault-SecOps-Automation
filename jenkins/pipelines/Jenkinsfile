@@ -1,0 +1,160 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        ansiColor('xterm')
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        VAULT_ADDR = 'http://vault:8200'
+        ANSIBLE_HOST_KEY_CHECKING = 'False'
+    }
+
+    stages {
+
+        stage('Initialize') {
+            steps {
+                echo "Pipeline started"
+                echo "Build: #${env.BUILD_NUMBER}"
+                sh 'date'
+            }
+        }
+
+        stage('Retrieve Secrets') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                        sh '''
+                            set -e
+                            echo "Fetching secrets from Vault..."
+
+                            vault kv get -format=json secret/mysql > mysql-creds.json
+                            vault kv get -format=json secret/api   > api-creds.json
+
+                            echo "Secrets retrieved"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Rotate Secrets') {
+            parallel {
+                stage('MySQL Password') {
+                    steps {
+                        echo "Rotating MySQL password via API/Ansible..."
+                        sh '''
+                            set -e
+                            curl -f -X POST http://api:5000/ansible/rotate
+                            echo "MySQL rotation triggered"
+                        '''
+                    }
+                }
+
+                stage('API Keys') {
+                    steps {
+                        echo "Rotating API key in Vault..."
+                        script {
+                            withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                                sh '''
+                                    set -e
+
+                                    NEW_KEY="sk-$(openssl rand -hex 16)"
+
+                                    vault kv put secret/api \
+                                        token="$NEW_KEY" \
+                                        endpoint="http://api:5000" \
+                                        rotated="$(date -Iseconds)"
+
+                                    echo "API key rotated"
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Generate Certificates') {
+            steps {
+                script {
+                    def services = ['api', 'frontend', 'backend']
+
+                    services.each { service ->
+                        echo "Generating certificate for ${service}.local..."
+                        sh """
+                            set -e
+                            curl -s -X POST http://api:5000/generate-cert \\
+                                -H 'Content-Type: application/json' \\
+                                -d '{"common_name":"${service}.local"}' \\
+                                | jq -r '.serial_number' > ${service}-cert-serial.txt
+
+                            echo "Cert for ${service}.local generated"
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Configuration') {
+            steps {
+                echo "Deploying TLS cert for jenkins.local via Ansible..."
+                sh '''
+                    set -e
+                    ansible-playbook /ansible/playbooks/deploy-cert.yml \
+                        -e "common_name=jenkins.local"
+                '''
+            }
+        }
+
+        stage('Verification') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                        sh '''
+                            set -e
+                            echo "Checking API & Vault health..."
+
+                            curl -f http://api:5000/health
+                            curl -f http://vault:8200/v1/sys/health
+
+                            echo "Reading latest MySQL password from Vault..."
+                            vault kv get -format=json secret/mysql > mysql-creds.json
+                            export MYSQL_PWD=$(jq -r '.data.data.password' mysql-creds.json)
+
+                            echo "Testing MySQL connection..."
+                            mysql --skip-ssl -h mysql -u root -e "SELECT 1" >/dev/null
+
+                            echo "All checks passed"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning up..."
+            sh '''
+                rm -f mysql-creds.json api-creds.json *-cert-serial.txt || true
+            '''
+        }
+
+        success {
+            echo "Pipeline completed successfully!"
+            sh '''
+                echo "$(date -Iseconds) - Pipeline #${BUILD_NUMBER} SUCCESS" >> /logs/pipeline.log
+            '''
+        }
+
+        failure {
+            echo "Pipeline failed!"
+            sh '''
+                echo "$(date -Iseconds) - Pipeline #${BUILD_NUMBER} FAILED" >> /logs/pipeline.log
+            '''
+        }
+    }
+}

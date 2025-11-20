@@ -1,0 +1,43 @@
+Started by timer
+Running as SYSTEM
+Building in workspace /var/jenkins_home/jobs/rotate-mysql/workspace
+[workspace] $ /bin/sh -xe /tmp/jenkins16911365358494341134.sh
++ set -e
++ echo === MySQL Password Rotation Job ===
+=== MySQL Password Rotation Job ===
++ date
++ echo Started at: Thu Nov 20 19:55:15 UTC 2025
+Started at: Thu Nov 20 19:55:15 UTC 2025
++ export VAULT_ADDR=http://vault:8200
++ export VAULT_TOKEN=root-token-demo
++ vault kv get -field=password secret/mysql
++ OLD_PASS=TP5fvvD0G9Wpwc+v
++ echo Old password retrieved
+Old password retrieved
++ openssl rand -base64 12
++ NEW_PASS=OwgvhCoGi5refZTz
++ echo New password generated
+New password generated
++ mysql --skip-ssl -h mysql -u root -pTP5fvvD0G9Wpwc+v
++ echo MySQL updated
+MySQL updated
++ date -Iseconds
++ vault kv put secret/mysql password=OwgvhCoGi5refZTz username=root host=mysql last_rotation=2025-11-20T19:55:15+00:00 rotated_by=jenkins
+== Secret Path ==
+secret/data/mysql
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2025-11-20T19:55:15.907288356Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            31
++ echo Vault updated
+Vault updated
++ date -Iseconds
++ echo 2025-11-20T19:55:15+00:00 - Rotation by Jenkins
++ echo === Rotation completed successfully ===
+=== Rotation completed successfully ===
+Finished: SUCCESS

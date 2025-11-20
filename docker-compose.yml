@@ -58,8 +58,36 @@ services:
       networks:
         - secops
 
+
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins
+    ports:
+      - "8090:8080"
+      - "50000:50000"
+    environment:
+      JENKINS_OPTS: "--prefix=/jenkins"
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "root-token-demo"
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./jenkins/config:/var/jenkins_home/init.groovy.d
+      - ./jenkins/jobs:/var/jenkins_home/jobs
+      - ./jenkins/pipelines:/jenkins/pipelines
+      - ./ansible:/ansible
+      - ./logs:/logs
+    networks:
+      - secops
+    depends_on:
+      - vault
+      - api
+
 networks:
   secops:
     driver: bridge
+
+volumes:
+  jenkins_home:
 
 

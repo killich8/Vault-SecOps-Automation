@@ -7,23 +7,24 @@ from datetime import datetime
 from flask_cors import CORS
 import subprocess
 import json
+import requests
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# 🔐 Connexion à Vault
+# Connexion à Vault
 vault_client = hvac.Client(
     url=os.getenv("VAULT_ADDR", "http://vault:8200"),
     token=os.getenv("VAULT_TOKEN", "root-token-demo")
 )
 
 
-# -----------------------------
+# ----------------
 # Helper Ansible
-# -----------------------------
+# ----------------
 def run_ansible_playbook(playbook_name, extra_vars=None):
     """
-    Exécute un playbook Ansible présent dans /ansible/playbooks/<name>.yml
+    Exécute un playbook Ansible présent dans /ansible/playbooks/
     Retourne: {success: bool, stdout: str, stderr: str}
     """
     cmd = [
@@ -34,7 +35,6 @@ def run_ansible_playbook(playbook_name, extra_vars=None):
     ]
 
     if extra_vars:
-        # On passe les extra_vars en JSON pour éviter les galères de quoting
         cmd.extend(["-e", json.dumps(extra_vars)])
 
     result = subprocess.run(
@@ -50,9 +50,9 @@ def run_ansible_playbook(playbook_name, extra_vars=None):
     }
 
 
-# -----------------------------
+# --------------------
 # Endpoints existants
-# -----------------------------
+# --------------------
 @app.route("/health")
 def health():
     """Health API + check Vault"""
@@ -72,8 +72,6 @@ def health():
 def rotate_secret():
     """
     Rotation d'un secret KV dans Vault.
-    Body JSON:
-      { "path": "mysql" }  -> correspond à secret/mysql
     """
     data = request.get_json() or {}
     path = data.get("path", "mysql")
@@ -113,8 +111,6 @@ def rotate_secret():
 def generate_cert():
     """
     Générer un certificat via PKI Vault.
-    Body JSON:
-      { "common_name": "app.local" }
     """
     data = request.get_json() or {}
     common_name = data.get("common_name", "app.local")
@@ -142,9 +138,9 @@ def generate_cert():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# -----------------------------
+# ------------------
 # Endpoints Ansible
-# -----------------------------
+# ------------------
 @app.route("/ansible/rotate", methods=["POST"])
 def ansible_rotate():
     """
@@ -204,7 +200,6 @@ def ansible_health():
     """Health check via Ansible"""
     result = run_ansible_playbook("check-health")
 
-    # Si le playbook lui-même plante
     if not result["success"]:
         return jsonify({
             "status": "error",
@@ -214,13 +209,8 @@ def ansible_health():
 
     services = {"vault": None, "api": None, "mysql": None}
 
-    # On parcourt TOUT le stdout Ansible et on cherche les lignes de debug
     for line in result["stdout"].splitlines():
         line = line.strip()
-        # Exemple de lignes réelles :
-        # "Vault: UP",
-        # "API: UP",
-        # "MySQL: DOWN"
         if "Vault:" in line:
             services["vault"] = "UP" in line
         elif "API:" in line:
@@ -232,8 +222,84 @@ def ansible_health():
         "status": "success",
         "services": services,
         "timestamp": datetime.now().isoformat(),
-        "raw_stdout": result["stdout"],   # utile pour debug, tu pourras le supprimer après
+        "raw_stdout": result["stdout"],
     })
+
+
+# ------------------
+# Jenkins
+# ------------------
+@app.route('/webhook/trigger-jenkins', methods=['POST'])
+def trigger_jenkins():
+    data = request.get_json() or {}
+    job_name = data.get('job', 'rotate-mysql')
+
+    try:
+        # URLs internes Docker
+        jenkins_base = "http://jenkins:8080/jenkins"
+
+        # Use session to maintain cookies
+        session = requests.Session()
+        session.auth = ('admin', 'admin123')
+
+        # 1. Get Jenkins crumb (CSRF token)
+        crumb_url = f"{jenkins_base}/crumbIssuer/api/json"
+        crumb_response = session.get(crumb_url)
+
+        if crumb_response.status_code != 200:
+            return jsonify({
+                'status': 'error',
+                'message': 'Crumb fetch failed',
+                'code': crumb_response.status_code
+            }), 500
+
+        crumb = crumb_response.json()['crumb']
+
+        # 2. Trigger Jenkins Job
+        build_url = f"{jenkins_base}/job/{job_name}/build"
+
+        response = session.post(
+            build_url,
+            params={'token': 'trigger-token'},
+            headers={'Jenkins-Crumb': crumb}
+        )
+
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'status': 'success',
+                'message': f'Job {job_name} triggered',
+                'jenkins_response': response.status_code
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed triggering job',
+                'code': response.status_code
+            }), 500
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+
+@app.route('/webhook/jenkins-callback', methods=['POST'])
+def jenkins_callback():
+    data = request.get_json() or {}
+
+    # Log
+    with open('/logs/jenkins-events.log', 'a') as f:
+        f.write(f"{datetime.now().isoformat()} - Jenkins: {json.dumps(data)}\n")
+
+    phase = data.get('build', {}).get('phase')
+    status = data.get('build', {}).get('status')
+    number = data.get('build', {}).get('number')
+
+    if phase == 'COMPLETED':
+        if status == 'SUCCESS':
+            print(f"Build #{number} finished successfully.")
+        else:
+            print(f"Build #{number} FAILED.")
+
+    return jsonify({'status': 'received'})
 
 
 if __name__ == "__main__":

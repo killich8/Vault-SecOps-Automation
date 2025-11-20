@@ -23,12 +23,12 @@ vault write -field=certificate pki/root/generate/internal \
     common_name="Demo CA" \
     ttl=8760h > /tmp/CA_cert.crt
 
-# 4. Créer un rôle pour générer des certificats
+# 4. rôle pour générer des certificats
 vault write pki/roles/internal \
     allowed_domains="local,localhost" \
     allow_subdomains=true \
     allow_glob_domains=true \
-    max_ttl="720h"
+    max_ttl="720h" 
 
 echo "Vault initialisé!"
 

@@ -2,497 +2,433 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Vault SecOps Dashboard</title>
+    <title> Dashboard - Jenkins Integration</title>
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      integrity="sha512-u1O8rU1tIeiXMJ0Jr0s1vZl9Y2G5HNsq4CPGK/c/pX9nuSUXGKmzj2YkdE+5EYXPL3ZXl2bqsxNbE2zdr9iQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"/>
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            margin: 0;
-            padding: 40px 0;
-            background: #f3f4f6;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a202c;
+            color: #e2e8f0;
         }
+        
+        .header {
+            background: linear-gradient(90deg, #4c1d95, #5b21b6);
+            padding: 20px;
+            text-align: center;
+        }
+        
         .container {
-            max-width: 960px;
-            margin: 0 auto;
-            background: #764ba2;
-            padding: 24px 28px 32px;
-            border-radius: 14px;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
         }
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        header h1 {
-            margin: 0;
-            font-size: 26px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        header h1 span.icon {
-            font-size: 30px;
-        }
-        header .tagline {
-            margin: 2px 0 0;
-            color: #6b7280;
-            font-size: 13px;
-        }
-        .status-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 16px;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-        }
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .status-pill.ok {
-            background: #ecfdf3;
-            color: #166534;
-        }
-        .status-pill.ko {
-            background: #fef2f2;
-            color: #b91c1c;
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: currentColor;
-        }
-        .timestamp {
-            font-size: 12px;
-            color: #9ca3af;
-        }
-
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .kpi-card {
-            background: #f9fafb;
-            border-radius: 10px;
-            padding: 10px 12px;
-            border: 1px solid #e5e7eb;
-        }
-        .kpi-title {
-            font-size: 12px;
-            color: #6b7280;
-            margin-bottom: 4px;
-        }
-        .kpi-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: #111827;
-        }
-        .kpi-sub {
-            font-size: 11px;
-            color: #9ca3af;
-        }
-
+        
         .grid {
             display: grid;
-            grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
+            margin-bottom: 20px;
         }
-
+        
         .card {
-            background: #f9fafb;
-            border-radius: 10px;
-            padding: 14px 16px 16px;
-            border: 1px solid #e5e7eb;
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
         }
-
-        .section-title {
+        
+        .card h3 {
+            color: #a78bfa;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .metric {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #10b981;
+        }
+        
+        .jenkins-status {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .section-title span.label {
-            font-size: 13px;
-            color: #6b7280;
-        }
-
-        .btn-row {
-            display: flex;
-            flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 10px;
+            padding: 10px;
+            background: #374151;
+            border-radius: 5px;
+            margin: 10px 0;
         }
-
+        
+        .build-success { background: #065f46; }
+        .build-failure { background: #7f1d1d; }
+        .build-running { background: #78350f; }
+        
         button {
-            background: #2563eb;
+            background: #7c3aed;
             color: white;
             border: none;
-            padding: 9px 16px;
-            border-radius: 999px;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 500;
-            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
-            transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.1s;
+            transition: all 0.3s;
         }
-        button span.icon {
-            font-size: 16px;
-        }
+        
         button:hover {
-            background: #1d4ed8;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+            background: #6d28d9;
+            transform: scale(1.05);
         }
-        button:active {
-            transform: translateY(0);
-            box-shadow: 0 3px 7px rgba(37, 99, 235, 0.25);
-        }
-
-        .field-group {
-            margin-top: 10px;
+        
+        .pipeline-stages {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-            font-size: 13px;
+            gap: 5px;
+            margin: 15px 0;
         }
-        .field-group label {
-            color: #374151;
-            font-weight: 500;
-        }
-        .field-inline {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        input[type="text"] {
+        
+        .stage {
             flex: 1;
-            padding: 7px 10px;
-            border-radius: 999px;
-            border: 1px solid #d1d5db;
-            font-size: 13px;
-            outline: none;
-        }
-        input[type="text"]:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
-        }
-
-        #logs {
-            background: #111827;
-            color: #e5e7eb;
-            padding: 10px 12px;
-            border-radius: 8px;
-            height: 260px;
-            overflow-y: auto;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            padding: 10px;
+            background: #374151;
+            border-radius: 5px;
+            text-align: center;
             font-size: 12px;
-            border: 1px solid #020617;
+            position: relative;
         }
-        .log-line {
-            white-space: pre-wrap;
+        
+        .stage.completed { background: #10b981; }
+        .stage.running { 
+            background: #f59e0b;
+            animation: pulse 2s infinite;
         }
-        .log-line.info { color: #9ca3af; }
-        .log-line.success { color: #6ee7b7; }
-        .log-line.error { color: #fca5a5; }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 20px 10px;
-            }
-            .container {
-                padding: 18px 16px 24px;
-            }
-            .grid {
-                grid-template-columns: minmax(0, 1fr);
-            }
-            .kpi-row {
-                grid-template-columns: minmax(0, 1fr);
-            }
+        .stage.pending { background: #6b7280; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        #console-output {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 2s infinite;
+        }
+        
+        .status-green { background: #10b981; }
+        .status-red { background: #ef4444; }
+        .status-yellow { background: #f59e0b; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <header>
-        <div>
-            <h1><span class="icon">🔐</span>Vault SecOps Dashboard</h1>
-            <p class="tagline">Rotation de secrets & certificats via Vault + Ansible</p>
-        </div>
-    </header>
-
-    <div class="status-bar">
-        <div>
-            <div id="status-pill" class="status-pill">
-                <span class="status-dot"></span>
-                <span id="status-text">Checking Vault & services...</span>
-            </div>
-        </div>
-        <div class="timestamp" id="status-timestamp">
-            —
-        </div>
+    <div class="header">
+        <h1>Automation Platform</h1>
+        <p>Jenkins CI/CD Integration - v3.0</p>
     </div>
-
-    <!-- KPIs -->
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-title">🔄 Dernière rotation (Ansible)</div>
-            <div class="kpi-value" id="last-rotation">—</div>
-            <div class="kpi-sub" id="rotation-timer">—</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-title">📜 Certificats générés (session)</div>
-            <div class="kpi-value" id="cert-count">0</div>
-            <div class="kpi-sub">Certificats déployés via Ansible</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-title">📊 Opérations (session)</div>
-            <div class="kpi-value" id="ops-count">0</div>
-            <div class="kpi-sub">Rotations & déploiements</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <!-- Colonne gauche : actions -->
-        <div class="card">
-            <div class="section-title">
-                <h2>Actions</h2>
-                <span class="label">Pilotage API (Ansible)</span>
-            </div>
-
-            <div class="btn-row">
-                <button onclick="rotateViaAnsible()">
-                    <span class="icon">🔄</span>
-                    <span>Rotate MySQL (Ansible)</span>
-                </button>
-
-                <button onclick="runHealthCheck()">
-                    <span class="icon">💚</span>
-                    <span>Health Check (Ansible)</span>
-                </button>
-            </div>
-
-            <div class="field-group">
-                <label for="cn-input">Génération de certificat (Ansible)</label>
-                <div class="field-inline">
-                    <input id="cn-input" type="text" placeholder="ex : app.local" value="app.local">
-                    <button onclick="deployCertAnsible()">
-                        <span class="icon">📜</span>
-                        <span>Deploy Certificate</span>
-                    </button>
+    
+    <div class="container">
+        <!-- Metrics -->
+        <div class="grid">
+            <div class="card">
+                <h3>🔨 Jenkins Builds</h3>
+                <div class="metric" id="build-count">0</div>
+                <div style="color: #9ca3af; margin-top: 10px;">
+                    Last: <span id="last-build">-</span>
                 </div>
-                <span style="font-size: 11px; color: #9ca3af;">
-                    Utilise le playbook <code>deploy-cert.yml</code> via l'endpoint <code>/ansible/deploy-cert</code>.
-                </span>
             </div>
-
-            <div class="field-group" style="margin-top: 12px;">
-                <label>Automatisation</label>
-                <div class="btn-row">
-                    <button onclick="runAutomationSequence()">
-                        <span class="icon">⚡</span>
-                        <span>Full Automation</span>
-                    </button>
-                    <button onclick="clearLogs()">
-                        <span class="icon">🗑️</span>
-                        <span>Clear Logs</span>
-                    </button>
+            
+            <div class="card">
+                <h3>⚡ Pipeline Status</h3>
+                <div id="pipeline-status" class="jenkins-status">
+                    <span class="status-indicator status-green"></span>
+                    <span>Idle</span>
                 </div>
-                <span style="font-size: 11px; color: #9ca3af;">
-                    Enchaîne Health → Rotation → Certificat.
-                </span>
+                <div class="pipeline-stages">
+                    <div class="stage pending">Init</div>
+                    <div class="stage pending">Secrets</div>
+                    <div class="stage pending">Rotate</div>
+                    <div class="stage pending">Certs</div>
+                    <div class="stage pending">Deploy</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🔐 Vault Operations</h3>
+                <div class="metric" id="vault-ops">0</div>
+                <div style="color: #9ca3af; margin-top: 10px;">
+                    Rotations & Certificates
+                </div>
             </div>
         </div>
-
-        <!-- Colonne droite : logs -->
+        
+        <!-- Controls -->
         <div class="card">
-            <div class="section-title">
-                <h2>Logs</h2>
-                <span class="label" id="logs-label">Derniers événements</span>
-            </div>
-            <div id="logs"></div>
+            <h3>🎮 Jenkins Controls</h3>
+            <button onclick="triggerPipeline()">▶️ Run Pipeline</button>
+            <button onclick="triggerRotation()">🔄 Rotate Only</button>
+            <button onclick="triggerCerts()">📜 Generate Certs</button>
+            <button onclick="abortPipeline()">⏹️ Abort Current</button>
+            <button onclick="getJenkinsStatus()">📊 Get Status</button>
+            <button onclick="viewLastBuild()">📋 Last Build Log</button>
+        </div>
+        
+        <!-- Console Output -->
+        <div class="card">
+            <h3>📺 Console Output</h3>
+            <div id="console-output"></div>
         </div>
     </div>
-</div>
 
-<script>
-    const API_BASE = "http://localhost:5000";
+    <script>
+        let buildCount = 0;
+        let vaultOps = 0;
+        let currentStage = 0;
+        let pipelineRunning = false;
+        let pipelineInterval = null; // pour contrôler setInterval du pipeline
 
-    let lastRotation = null;
-    let opsCount = 0;
-    let certCount = 0;
-
-    function addLog(message, level = "info") {
-        const logs = document.getElementById("logs");
-        const time = new Date().toLocaleTimeString();
-        const line = document.createElement("div");
-        line.className = "log-line " + level;
-        line.textContent = `[${time}] ${message}`;
-        logs.prepend(line);
-
-        // garder max 80 lignes
-        while (logs.children.length > 80) {
-            logs.removeChild(logs.lastChild);
-        }
-    }
-
-    function updateStatusUI(services, timestamp) {
-        const pill = document.getElementById("status-pill");
-        const text = document.getElementById("status-text");
-        const ts = document.getElementById("status-timestamp");
-
-        const allUp = services &&
-            services.vault === true &&
-            services.api === true &&
-            services.mysql === true;
-
-        if (allUp) {
-            pill.classList.remove("ko");
-            pill.classList.add("ok");
-            text.textContent = "All services UP (Vault / API / MySQL)";
-        } else {
-            pill.classList.remove("ok");
-            pill.classList.add("ko");
-            text.textContent = "Some services are DOWN";
+        function log(message, color = '#00ff00') {
+            const consoleEl = document.getElementById('console-output');
+            const time = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.style.color = color;
+            line.textContent = `[${time}] ${message}`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
         }
 
-        if (timestamp) {
-            ts.textContent = `Last health (Ansible): ${timestamp}`;
-        } else {
-            ts.textContent = "—";
-        }
-    }
-
-    function updateKPIs() {
-        // Dernière rotation
-        const lastRotEl = document.getElementById("last-rotation");
-        const timerEl = document.getElementById("rotation-timer");
-        if (lastRotation) {
-            lastRotEl.textContent = lastRotation.toLocaleTimeString();
-            const now = new Date();
-            const diff = Math.floor((now - lastRotation) / 1000);
-            const hours = Math.floor(diff / 3600);
-            const minutes = Math.floor((diff % 3600) / 60);
-            const seconds = diff % 60;
-            timerEl.textContent = `${hours}h ${minutes}m ${seconds}s ago`;
-        } else {
-            lastRotEl.textContent = "—";
-            timerEl.textContent = "Aucune rotation enregistrée";
-        }
-
-        document.getElementById("ops-count").textContent = opsCount;
-        document.getElementById("cert-count").textContent = certCount;
-    }
-
-    async function runHealthCheck() {
-        addLog("Running Ansible health check...", "info");
-        try {
-            const res = await fetch(`${API_BASE}/ansible/health`);
-            const data = await res.json();
-
-            if (data.status === "success") {
-                updateStatusUI(data.services, data.timestamp);
-                addLog("Health check completed (Ansible)", "success");
-            } else {
-                addLog("Health check error: " + (data.message || "Unknown error"), "error");
+        async function triggerPipeline() {
+            log('Triggering Jenkins pipeline...', '#ffff00');
+            pipelineRunning = true;
+            updatePipelineStatus('running');
+            
+            try {
+                const response = await fetch('http://localhost:5000/webhook/trigger-jenkins', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({job: 'rotate-mysql'})
+                });
+                
+                if (response.ok) {
+                    log('✅ Pipeline triggered successfully', '#00ff00');
+                    buildCount++;
+                    document.getElementById('build-count').textContent = buildCount;
+                    document.getElementById('last-build').textContent = new Date().toLocaleTimeString();
+                    simulatePipeline();
+                } else {
+                    log('❌ Failed to trigger pipeline', '#ff0000');
+                    updatePipelineStatus('failed');
+                    pipelineRunning = false;
+                }
+            } catch (e) {
+                log('❌ Error: ' + e.message, '#ff0000');
+                updatePipelineStatus('failed');
+                pipelineRunning = false;
             }
-        } catch (e) {
-            addLog("Health check failed: " + e.message, "error");
         }
-    }
 
-    async function rotateViaAnsible() {
-        addLog("Starting MySQL rotation via Ansible...", "info");
-        try {
-            const res = await fetch(`${API_BASE}/ansible/rotate`, {
-                method: "POST",
-            });
-            const data = await res.json();
-
-            if (data.status === "success") {
-                addLog("✅ MySQL password rotated via Ansible", "success");
-                lastRotation = new Date();
-                opsCount += 1;
-                updateKPIs();
-            } else {
-                addLog("Rotation failed: " + (data.message || "Unknown error"), "error");
+        async function triggerRotation() {
+            log('Triggering rotation job...', '#ffff00');
+            
+            try {
+                const response = await fetch('http://localhost:5000/webhook/trigger-jenkins', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({job: 'rotate-mysql'})
+                });
+                
+                if (response.ok) {
+                    log('✅ Rotation job triggered', '#00ff00');
+                    vaultOps++;
+                    document.getElementById('vault-ops').textContent = vaultOps;
+                } else {
+                    log('❌ Failed to trigger rotation', '#ff0000');
+                }
+            } catch (e) {
+                log('❌ Error: ' + e.message, '#ff0000');
             }
-        } catch (e) {
-            addLog("Rotation error: " + e.message, "error");
-        }
-    }
-
-    async function deployCertAnsible() {
-        const input = document.getElementById("cn-input");
-        const cn = (input.value || "").trim();
-        if (!cn) {
-            addLog("No Common Name provided, aborting deploy-cert", "error");
-            return;
         }
 
-        addLog(`Deploying certificate via Ansible for ${cn}...`, "info");
-        try {
-            const res = await fetch(`${API_BASE}/ansible/deploy-cert`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({common_name: cn}),
-            });
-            const data = await res.json();
-
-            if (data.status === "success") {
-                addLog(`✅ Certificate deployed for ${cn}`, "success");
-                certCount += 1;
-                opsCount += 1;
-                updateKPIs();
-            } else {
-                addLog("Certificate deployment failed: " + (data.message || "Unknown error"), "error");
+        async function triggerCerts() {
+            log('Generating certificates...', '#ffff00');
+            
+            const services = ['api', 'frontend', 'backend'];
+            for (const service of services) {
+                try {
+                    const response = await fetch('http://localhost:5000/generate-cert', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({common_name: `${service}.local`})
+                    });
+                    
+                    if (response.ok) {
+                        log(`✅ Certificate generated for ${service}.local`, '#00ff00');
+                        vaultOps++;
+                    } else {
+                        log(`❌ Cert request failed for ${service}.local`, '#ff0000');
+                    }
+                } catch (e) {
+                    log(`❌ Failed to generate cert for ${service}: ${e.message}`, '#ff0000');
+                }
             }
-        } catch (e) {
-            addLog("Error deploying certificate: " + e.message, "error");
+            document.getElementById('vault-ops').textContent = vaultOps;
         }
-    }
 
-    async function runAutomationSequence() {
-        addLog("Starting full automation sequence (Health → Rotate → Cert)...", "info");
-        await runHealthCheck();
-        await new Promise(r => setTimeout(r, 700));
-        await rotateViaAnsible();
-        await new Promise(r => setTimeout(r, 700));
-        await deployCertAnsible();
-        addLog("Automation sequence completed.", "success");
-    }
+        function simulatePipeline() {
+            const stages = document.querySelectorAll('.stage');
+            const stageNames = ['Init', 'Secrets', 'Rotate', 'Certs', 'Deploy'];
+            currentStage = 0;
 
-    function clearLogs() {
-        const logs = document.getElementById("logs");
-        logs.innerHTML = "";
-        addLog("Logs cleared", "info");
-    }
+            // Reset visuel au début
+            stages.forEach(s => s.className = 'stage pending');
 
-    // Init
-    addLog("Dashboard initialized", "info");
-    updateKPIs();
-    runHealthCheck();
-    setInterval(updateKPIs, 1000); // met à jour le timer de rotation
-</script>
+            // Stopper un ancien interval si besoin
+            if (pipelineInterval) {
+                clearInterval(pipelineInterval);
+            }
+
+            pipelineInterval = setInterval(() => {
+                if (!pipelineRunning) {
+                    clearInterval(pipelineInterval);
+                    return;
+                }
+
+                if (currentStage < stages.length) {
+                    if (currentStage > 0) {
+                        stages[currentStage - 1].className = 'stage completed';
+                    }
+
+                    stages[currentStage].className = 'stage running';
+                    log(`Stage: ${stageNames[currentStage]} - Running...`, '#ffff00');
+                    currentStage++;
+                } else {
+                    stages[stages.length - 1].className = 'stage completed';
+                    clearInterval(pipelineInterval);
+                    log('🎉 Pipeline completed successfully!', '#00ff00');
+                    updatePipelineStatus('success');
+                    pipelineRunning = false;
+                }
+            }, 2000);
+        }
+
+        function updatePipelineStatus(status) {
+            const statusDiv = document.getElementById('pipeline-status');
+            const statusMap = {
+                'idle':    { icon: '🟢', text: 'Idle',    class: 'status-green' },
+                'running': { icon: '🟡', text: 'Running', class: 'status-yellow' },
+                'success': { icon: '🟢', text: 'Success', class: 'status-green' },
+                'failed':  { icon: '🔴', text: 'Failed',  class: 'status-red' }
+            };
+
+            const s = statusMap[status] || statusMap['idle'];
+
+            statusDiv.innerHTML = `
+                <span class="status-indicator ${s.class}"></span>
+                <span>${s.text}</span>
+            `;
+
+            if (status === 'success') {
+                statusDiv.className = 'jenkins-status build-success';
+            } else if (status === 'failed') {
+                statusDiv.className = 'jenkins-status build-failure';
+            } else if (status === 'running') {
+                statusDiv.className = 'jenkins-status build-running';
+            } else {
+                statusDiv.className = 'jenkins-status';
+            }
+        }
+
+        function abortPipeline() {
+            if (pipelineRunning) {
+                log('⏹️ Aborting pipeline...', '#ff9900');
+                pipelineRunning = false;
+
+                if (pipelineInterval) {
+                    clearInterval(pipelineInterval);
+                }
+
+                updatePipelineStatus('failed');
+
+                document.querySelectorAll('.stage').forEach(s => {
+                    s.className = 'stage pending';
+                });
+            } else {
+                log('No pipeline running', '#999999');
+            }
+        }
+
+        async function getJenkinsStatus() {
+            log('Fetching Jenkins status (simulated)...', '#ffff00');
+            
+            // Simulation simple (tu pourras brancher l’API Jenkins plus tard)
+            setTimeout(() => {
+                log('Jenkins: Online', '#00ff00');
+                log(`Total builds: ${buildCount}`, '#00ff00');
+                log('Queue: Empty', '#00ff00');
+                log('Executors: 2 available', '#00ff00');
+            }, 500);
+        }
+
+        function viewLastBuild() {
+            log('=== Last Build Output (simulated) ===', '#00ffff');
+            log('[Jenkins] Starting Pipeline #' + buildCount, '#999999');
+            log('[Jenkins] Agent: any', '#999999');
+            log('[Jenkins] Stage: Initialize', '#999999');
+            log('[Jenkins] + echo "Pipeline started"', '#999999');
+            log('[Jenkins] Stage: Retrieve Secrets', '#999999');
+            log('[Jenkins] + vault kv get secret/mysql', '#999999');
+            log('[Jenkins] ✅ Secrets retrieved', '#00ff00');
+            log('[Jenkins] Stage: Rotate', '#999999');
+            log('[Jenkins] + ansible-playbook rotate-mysql.yml', '#999999');
+            log('[Jenkins] ✅ Rotation completed', '#00ff00');
+            log('[Jenkins] Pipeline completed: SUCCESS', '#00ff00');
+            log('=== End of Output ===', '#00ffff');
+        }
+
+        // Init
+        log('🚀 Dashboard initialized', '#00ffff');
+        log('Connected to Jenkins & Vault (simulated)', '#00ff00');
+        
+        // Auto-refresh health every 10s (API / Vault)
+        setInterval(() => {
+            if (!pipelineRunning) {
+                fetch('http://localhost:5000/health')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.vault_connected) {
+                            log('Health check: All systems operational', '#008800');
+                        } else {
+                            log('Health check: Vault disconnected', '#880000');
+                        }
+                    })
+                    .catch(e => {
+                        log('Health check failed: ' + e.message, '#880000');
+                    });
+            }
+        }, 10000);
+    </script>
 </body>
 </html>

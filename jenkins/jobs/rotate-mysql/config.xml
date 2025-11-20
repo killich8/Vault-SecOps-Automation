@@ -1,0 +1,62 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Rotation du password MySQL via Vault</description>
+  <keepDependencies>false</keepDependencies>
+
+  <scm class="hudson.scm.NullSCM"/>
+
+  <authToken>trigger-token</authToken>
+
+  <triggers>
+    <hudson.triggers.TimerTrigger>
+      <!-- Tous les jours à 2h -->
+      <spec>0 2 * * *</spec>
+    </hudson.triggers.TimerTrigger>
+  </triggers>
+
+  <builders>
+    <hudson.tasks.Shell>
+      <command><![CDATA[
+#!/bin/bash
+set -e
+
+echo "=== MySQL Password Rotation Job ==="
+echo "Started at: $(date)"
+
+export VAULT_ADDR="http://vault:8200"
+export VAULT_TOKEN="root-token-demo"
+
+OLD_PASS=$(vault kv get -field=password secret/mysql)
+echo "Old password retrieved"
+
+NEW_PASS=$(openssl rand -base64 12)
+echo "New password generated"
+
+# Change MySQL FIRST (before Vault)
+mysql --skip-ssl -h mysql -u root -p"$OLD_PASS" <<EOF
+ALTER USER 'root'@'%' IDENTIFIED BY '$NEW_PASS';
+FLUSH PRIVILEGES;
+EOF
+
+echo "MySQL updated"
+
+# Update Vault only AFTER MySQL succeeds
+vault kv put secret/mysql \
+  password="$NEW_PASS" \
+  username="root" \
+  host="mysql" \
+  last_rotation="$(date -Iseconds)" \
+  rotated_by="jenkins"
+
+echo "Vault updated"
+
+echo "$(date -Iseconds) - Rotation by Jenkins" >> /logs/jenkins-rotations.log
+echo "=== Rotation completed successfully ==="
+      ]]></command>
+    </hudson.tasks.Shell>
+  </builders>
+
+  <publishers/>
+  <buildWrappers/>
+</project>
