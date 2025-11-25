@@ -1,6 +1,6 @@
 
 services:
-  # Vault en mode dev pour aller vite
+  # j'utilise vault en mode dev 
   vault:
     image: vault:1.13.3
     container_name: vault
@@ -32,19 +32,22 @@ services:
       - secops
 
   api:
-    build: ./api              
+    build: ./api
     container_name: api
     ports:
       - "5000:5000"
     environment:
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "root-token-demo"
+      # AppRole credentials 
+      VAULT_ROLE_ID: "${API_ROLE_ID}"
+      VAULT_SECRET_ID: "${API_SECRET_ID}"
     depends_on:
       - vault
       - mysql
     volumes:
-      - ./ansible:/ansible:ro   
-      - ./logs:/logs            
+      - ./ansible:/ansible:ro
+      - ./logs:/logs
+      - ./vault/scripts:/vault-scripts:ro
     networks:
       - secops
     
@@ -68,7 +71,9 @@ services:
     environment:
       JENKINS_OPTS: "--prefix=/jenkins"
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "root-token-demo"
+      # AppRole credentials
+      VAULT_ROLE_ID: "${JENKINS_ROLE_ID}"
+      VAULT_SECRET_ID: "${JENKINS_SECRET_ID}"
       JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
     volumes:
       - jenkins_home:/var/jenkins_home
@@ -77,11 +82,67 @@ services:
       - ./jenkins/pipelines:/jenkins/pipelines
       - ./ansible:/ansible
       - ./logs:/logs
+      - ./vault/scripts:/vault-scripts:ro
     networks:
       - secops
     depends_on:
       - vault
       - api
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - secops
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - grafana_data:/var/lib/grafana
+    networks:
+      - secops
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - secops
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysql-exporter
+    command:
+      - "--mysqld.address=mysql:3306"
+      - "--mysqld.username=root"
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: "oldpassword123"
+    ports:
+      - "9104:9104"
+    networks:
+      - secops
+    depends_on:
+      - mysql
+
 
 networks:
   secops:
@@ -89,5 +150,7 @@ networks:
 
 volumes:
   jenkins_home:
+  prometheus_data:
+  grafana_data:
 
 

@@ -7,3 +7,4 @@ generic-webhook-trigger
 ansible
 ansicolor
 timestamper
+prometheus

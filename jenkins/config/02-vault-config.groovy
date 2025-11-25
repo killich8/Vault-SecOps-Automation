@@ -10,30 +10,45 @@ def store = instance
     .getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0]
     .getStore()
 
-def credId = "vault-token"
 
-// Vérifier si le credential existe déjà
-def existing = CredentialsProvider.lookupCredentials(
-    StringCredentials.class,
-    instance,
-    null,
-    null
-).find { it.id == credId }
+// AppRole Credentials
+def roleIdCredId = "vault-role-id"
+def secretIdCredId = "vault-secret-id"
 
-if (existing != null) {
-    println "Credentials '${credId}' already exists, skipping."
-} else {
-    println "Creating Vault credentials '${credId}'..."
+def roleId = System.getenv("VAULT_ROLE_ID") ?: ""
+def secretId = System.getenv("VAULT_SECRET_ID") ?: ""
 
-    def vaultToken = new StringCredentialsImpl(
+// Créer credential pour Role ID
+def existingRoleId = CredentialsProvider.lookupCredentials(
+    StringCredentials.class, instance, null, null
+).find { it.id == roleIdCredId }
+
+if (existingRoleId == null && roleId) {
+    println "Creating Vault AppRole Role ID credential..."
+    def roleIdCred = new StringCredentialsImpl(
         CredentialsScope.GLOBAL,
-        credId,
-        "Vault Token for Demo",
-        Secret.fromString("root-token-demo")
+        roleIdCredId,
+        "Vault AppRole Role ID",
+        Secret.fromString(roleId)
     )
-
-    store.addCredentials(domain, vaultToken)
-    instance.save()
-
-    println "Vault credentials configured"
+    store.addCredentials(domain, roleIdCred)
 }
+
+// Créer credential pour Secret ID
+def existingSecretId = CredentialsProvider.lookupCredentials(
+    StringCredentials.class, instance, null, null
+).find { it.id == secretIdCredId }
+
+if (existingSecretId == null && secretId) {
+    println "Creating Vault AppRole Secret ID credential..."
+    def secretIdCred = new StringCredentialsImpl(
+        CredentialsScope.GLOBAL,
+        secretIdCredId,
+        "Vault AppRole Secret ID",
+        Secret.fromString(secretId)
+    )
+    store.addCredentials(domain, secretIdCred)
+}
+
+instance.save()
+println "Vault AppRole credentials configured"

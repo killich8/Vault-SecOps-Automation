@@ -1,0 +1,213 @@
+{
+  "uid": "vault-secops",
+  "title": "Vault SECaaS Monitoring",
+  "schemaVersion": 36,
+  "version": 1,
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Vault Status",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=\"vault\"}",
+          "legendFormat": "Vault",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "value": 1,
+              "text": "UP",
+              "color": "green"
+            },
+            {
+              "type": "value",
+              "value": 0,
+              "text": "DOWN",
+              "color": "red"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 1, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      }
+    },
+
+    {
+      "id": 2,
+      "title": "Rotations (24h)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(vault_rotation_total[5m])",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "xaxis": { "mode": "time" },
+      "yaxes": [
+        {
+          "format": "ops",
+          "label": "Rotations/sec",
+          "logBase": 1
+        },
+        {
+          "format": "short",
+          "logBase": 1
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "nullPointMode": "null",
+      "legend": {
+        "show": true
+      }
+    },
+
+    {
+      "id": 3,
+      "title": "Active Certificates",
+      "type": "gauge",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "vault_active_certificates",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 10, "color": "yellow" },
+              { "value": 50, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      }
+    },
+
+    {
+      "id": 4,
+      "title": "Rotation Duration (p95)",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vault_rotation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Duration",
+          "logBase": 1
+        },
+        {
+          "format": "short",
+          "logBase": 1
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "xaxis": { "mode": "time" },
+      "legend": {
+        "show": true
+      }
+    },
+
+    {
+      "id": 5,
+      "title": "Alerts (Prometheus)",
+      "type": "alert-list",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "options": {
+        "show": "active",
+        "sortOrder": 1
+      }
+    },
+
+    {
+      "id": 6,
+      "title": "API Requests Rate",
+      "type": "graph",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(api_requests_total[5m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "xaxis": { "mode": "time" },
+      "yaxes": [
+        {
+          "format": "reqps",
+          "label": "Requests/sec",
+          "logBase": 1
+        },
+        {
+          "format": "short",
+          "logBase": 1
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  }
+}

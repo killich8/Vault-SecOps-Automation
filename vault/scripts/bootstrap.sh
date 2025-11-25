@@ -4,7 +4,7 @@ set -e
 echo "=== Bootstrap Vault (dev) ==="
 sh /scripts/init.sh
 sh /scripts/create-secrets.sh
-echo "✅ Bootstrap terminé"
+echo "Bootstrap terminé"
 
 
 # docker-compose up -d
