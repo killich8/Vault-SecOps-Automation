@@ -177,7 +177,7 @@
             </div>
             
             <div class="card">
-                <h3>🔐 Vault Operations</h3>
+                <h3>Vault Operations</h3>
                 <div class="metric" id="vault-ops">0</div>
                 <div style="color: #9ca3af; margin-top: 10px;">
                     Rotations & Certificates
@@ -188,7 +188,7 @@
         <!-- Controls -->
         <div class="card">
             <h3>Jenkins Controls</h3>
-            <button onclick="triggerPipeline()">▶️ Run Pipeline</button>
+            <button onclick="triggerPipeline()">Run Pipeline</button>
             <button onclick="triggerRotation()">Rotation</button>
             <button onclick="triggerCerts()">Generate Certs</button>
             <button onclick="abortPipeline()">Abort Current</button>
@@ -363,7 +363,7 @@
 
         function abortPipeline() {
             if (pipelineRunning) {
-                log('⏹️ Aborting pipeline...', '#ff9900');
+                log('Aborting pipeline...', '#ff9900');
                 pipelineRunning = false;
 
                 if (pipelineInterval) {
