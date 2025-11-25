@@ -5,10 +5,43 @@
 
   vars:
     vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault:8200') }}"
-    vault_token: "{{ lookup('env', 'VAULT_TOKEN') | default('root-token-demo') }}"
+    # AppRole credentials
+    vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') | default('') }}"
+    vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') | default('') }}"
 
   tasks:
 
+    # ========================
+    # AppRole Authentication
+    # ========================
+    - name: Authenticate via AppRole
+      uri:
+        url: "{{ vault_addr }}/v1/auth/approle/login"
+        method: POST
+        body_format: json
+        body:
+          role_id: "{{ vault_role_id }}"
+          secret_id: "{{ vault_secret_id }}"
+        status_code: [200]
+      register: approle_auth
+      when: vault_role_id | length > 0 and vault_secret_id | length > 0
+      no_log: yes
+
+    - name: Fail if AppRole credentials missing
+      fail:
+        msg: "VAULT_ROLE_ID et VAULT_SECRET_ID sont requis"
+      when: vault_role_id | length == 0 or vault_secret_id | length == 0
+
+    - name: Set Vault token from AppRole
+      set_fact:
+        vault_token: "{{ approle_auth.json.auth.client_token }}"
+
+    - debug:
+        msg: "Authenticated via AppRole"
+
+    # ========================
+    # Rotation Logic
+    # ========================
     - name: Get current password from Vault
       uri:
         url: "{{ vault_addr }}/v1/secret/data/mysql"

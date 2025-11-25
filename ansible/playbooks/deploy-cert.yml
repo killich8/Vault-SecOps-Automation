@@ -5,24 +5,53 @@
 
   vars:
     vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('http://vault:8200') }}"
-    vault_token: "{{ lookup('env', 'VAULT_TOKEN') | default('root-token-demo') }}"
+    # AppRole credentials
+    vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') | default('') }}"
+    vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') | default('') }}"
     cert_path: "/tmp/certs"
     default_common_name: "app.local"
 
   tasks:
+    # =======================
+    # AppRole Authentication
+    # =======================
+    - name: Fail if AppRole credentials missing
+      fail:
+        msg: "VAULT_ROLE_ID et VAULT_SECRET_ID sont requis"
+      when: vault_role_id | length == 0 or vault_secret_id | length == 0
+
+    - name: Authenticate via AppRole
+      uri:
+        url: "{{ vault_addr }}/v1/auth/approle/login"
+        method: POST
+        body_format: json
+        body:
+          role_id: "{{ vault_role_id }}"
+          secret_id: "{{ vault_secret_id }}"
+        status_code: [200]
+      register: approle_auth
+      no_log: yes
+
+    - name: Set Vault token from AppRole
+      set_fact:
+        vault_token: "{{ approle_auth.json.auth.client_token }}"
+
+    # =======================
+    # Certificate Generation
+    # =======================
     - name: Normaliser le Common Name et le nom de fichier
       set_fact:
         cn: "{{ common_name | default(default_common_name) }}"
         cert_basename: "{{ (common_name | default(default_common_name)) | regex_replace('\\.local$', '') }}"
 
-    # 1. Créer répertoire pour les certs
+    # Créer répertoire pour les certs
     - name: Create certificate directory
       file:
         path: "{{ cert_path }}"
         state: directory
         mode: "0755"
 
-    # 2. Générer certificat via Vault PKI
+    # Générer certificat via Vault PKI
     - name: Generate certificate from Vault PKI
       uri:
         url: "{{ vault_addr }}/v1/pki/issue/internal"
@@ -35,7 +64,7 @@
           ttl: "24h"
       register: cert_response
 
-    # 3. Save certificat
+    # Save certificat
     - name: Save certificate
       copy:
         content: "{{ cert_response.json.data.certificate }}"
@@ -56,7 +85,7 @@
         mode: "0644"
       when: cert_response.json.data.ca_chain is defined
 
-    # 4. Créer un bundle (cert + CA)
+    # Créer un bundle (cert + CA)
     - name: Create certificate bundle (cert + CA)
       shell: |
         cat {{ cert_path }}/{{ cert_basename }}.crt \
@@ -64,7 +93,7 @@
             > {{ cert_path }}/{{ cert_basename }}-bundle.pem
       when: cert_response.json.data.ca_chain is defined
 
-    # 5. Afficher infos certificat
+    # Afficher infos certificat
     - name: Get certificate info with openssl
       shell: |
         openssl x509 -in {{ cert_path }}/{{ cert_basename }}.crt \
@@ -78,7 +107,7 @@
           - "{{ cert_info.stdout_lines }}"
           - "Serial: {{ cert_response.json.data.serial_number }}"
 
-    # 6. Log
+    # Log
     - name: Log certificate generation
       lineinfile:
         path: /logs/certificates.log

@@ -147,14 +147,14 @@
 <body>
     <div class="header">
         <h1>Automation Platform</h1>
-        <p>Jenkins CI/CD Integration - v3.0</p>
+        <p>Jenkins CI/CD Integration</p>
     </div>
     
     <div class="container">
         <!-- Metrics -->
         <div class="grid">
             <div class="card">
-                <h3>🔨 Jenkins Builds</h3>
+                <h3>Jenkins Builds</h3>
                 <div class="metric" id="build-count">0</div>
                 <div style="color: #9ca3af; margin-top: 10px;">
                     Last: <span id="last-build">-</span>
@@ -162,7 +162,7 @@
             </div>
             
             <div class="card">
-                <h3>⚡ Pipeline Status</h3>
+                <h3>Pipeline Status</h3>
                 <div id="pipeline-status" class="jenkins-status">
                     <span class="status-indicator status-green"></span>
                     <span>Idle</span>
@@ -187,13 +187,13 @@
         
         <!-- Controls -->
         <div class="card">
-            <h3>🎮 Jenkins Controls</h3>
+            <h3>Jenkins Controls</h3>
             <button onclick="triggerPipeline()">▶️ Run Pipeline</button>
-            <button onclick="triggerRotation()">🔄 Rotate Only</button>
-            <button onclick="triggerCerts()">📜 Generate Certs</button>
-            <button onclick="abortPipeline()">⏹️ Abort Current</button>
-            <button onclick="getJenkinsStatus()">📊 Get Status</button>
-            <button onclick="viewLastBuild()">📋 Last Build Log</button>
+            <button onclick="triggerRotation()">Rotation</button>
+            <button onclick="triggerCerts()">Generate Certs</button>
+            <button onclick="abortPipeline()">Abort Current</button>
+            <button onclick="getJenkinsStatus()">Get Status</button>
+            <button onclick="viewLastBuild()">Last Build Log</button>
         </div>
         
         <!-- Console Output -->
@@ -233,18 +233,18 @@
                 });
                 
                 if (response.ok) {
-                    log('✅ Pipeline triggered successfully', '#00ff00');
+                    log('Pipeline triggered successfully', '#00ff00');
                     buildCount++;
                     document.getElementById('build-count').textContent = buildCount;
                     document.getElementById('last-build').textContent = new Date().toLocaleTimeString();
                     simulatePipeline();
                 } else {
-                    log('❌ Failed to trigger pipeline', '#ff0000');
+                    log('Failed to trigger pipeline', '#ff0000');
                     updatePipelineStatus('failed');
                     pipelineRunning = false;
                 }
             } catch (e) {
-                log('❌ Error: ' + e.message, '#ff0000');
+                log('Error: ' + e.message, '#ff0000');
                 updatePipelineStatus('failed');
                 pipelineRunning = false;
             }
@@ -261,14 +261,14 @@
                 });
                 
                 if (response.ok) {
-                    log('✅ Rotation job triggered', '#00ff00');
+                    log('Rotation job triggered', '#00ff00');
                     vaultOps++;
                     document.getElementById('vault-ops').textContent = vaultOps;
                 } else {
-                    log('❌ Failed to trigger rotation', '#ff0000');
+                    log('Failed to trigger rotation', '#ff0000');
                 }
             } catch (e) {
-                log('❌ Error: ' + e.message, '#ff0000');
+                log('Error: ' + e.message, '#ff0000');
             }
         }
 
@@ -285,13 +285,13 @@
                     });
                     
                     if (response.ok) {
-                        log(`✅ Certificate generated for ${service}.local`, '#00ff00');
+                        log(`Certificate generated for ${service}.local`, '#00ff00');
                         vaultOps++;
                     } else {
-                        log(`❌ Cert request failed for ${service}.local`, '#ff0000');
+                        log(`Cert request failed for ${service}.local`, '#ff0000');
                     }
                 } catch (e) {
-                    log(`❌ Failed to generate cert for ${service}: ${e.message}`, '#ff0000');
+                    log(`Failed to generate cert for ${service}: ${e.message}`, '#ff0000');
                 }
             }
             document.getElementById('vault-ops').textContent = vaultOps;
@@ -327,7 +327,7 @@
                 } else {
                     stages[stages.length - 1].className = 'stage completed';
                     clearInterval(pipelineInterval);
-                    log('🎉 Pipeline completed successfully!', '#00ff00');
+                    log('Pipeline completed successfully!', '#00ff00');
                     updatePipelineStatus('success');
                     pipelineRunning = false;
                 }
@@ -400,17 +400,17 @@
             log('[Jenkins] + echo "Pipeline started"', '#999999');
             log('[Jenkins] Stage: Retrieve Secrets', '#999999');
             log('[Jenkins] + vault kv get secret/mysql', '#999999');
-            log('[Jenkins] ✅ Secrets retrieved', '#00ff00');
+            log('[Jenkins] Secrets retrieved', '#00ff00');
             log('[Jenkins] Stage: Rotate', '#999999');
             log('[Jenkins] + ansible-playbook rotate-mysql.yml', '#999999');
-            log('[Jenkins] ✅ Rotation completed', '#00ff00');
+            log('[Jenkins] Rotation completed', '#00ff00');
             log('[Jenkins] Pipeline completed: SUCCESS', '#00ff00');
             log('=== End of Output ===', '#00ffff');
         }
 
         // Init
-        log('🚀 Dashboard initialized', '#00ffff');
-        log('Connected to Jenkins & Vault (simulated)', '#00ff00');
+        log('Dashboard initialized', '#00ffff');
+        log('Connected to Jenkins & Vault', '#00ff00');
         
         // Auto-refresh health every 10s (API / Vault)
         setInterval(() => {

@@ -1,0 +1,104 @@
+groups:
+
+  # ==============
+  #  Vault Alerts
+  # =======
+  - name: vault_alerts
+    interval: 30s
+    rules:
+
+      # vault est down (scrape = 0)
+      - alert: VaultDown
+        expr: up{job="vault"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: vault
+        annotations:
+          summary: "Vault is DOWN"
+          description: "Vault has not responded for more than 1 minute"
+
+      # trop d’erreurs dans Vault 
+      - alert: VaultHighErrorRate
+        expr: rate(vault_core_handle_request_errors[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: vault
+        annotations:
+          summary: "High Vault error rate"
+          description: "Vault error rate over the past 5 minutes is {{ $value }} errors/sec"
+
+
+  # ===================
+  #  API Flask metrics
+  # ==================
+  - name: rotation_alerts
+    rules:
+
+      # Rotation échouée dans les 5 dernières minutes
+      - alert: SecretRotationFailures
+        expr: increase(vault_rotation_total{status="failure"}[5m]) > 0
+        labels:
+          severity: critical
+          service: rotation
+        annotations:
+          summary: "Secret rotation failures detected"
+          description: "One or more secret rotations have failed in the last 5 minutes"
+
+      # Aucune rotation depuis 24h
+      - alert: RotationOverdue
+        expr: time() - vault_last_rotation_timestamp > 86400
+        labels:
+          severity: warning
+          service: rotation
+        annotations:
+          summary: "Secret rotation overdue"
+          description: "No secret rotation occurred in the last 24 hours. Last rotation timestamp = {{ $value }}"
+
+
+
+  # ===================
+  # certificate alerts
+  # ====================
+  - name: certificate_alerts
+    rules:
+
+      - alert: NoActiveCertificates
+        expr: vault_active_certificates < 1
+        for: 2m
+        labels:
+          severity: warning
+          service: certificates
+        annotations:
+          summary: "No active certificates detected"
+          description: "Your PKI system currently has no active certificates"
+
+      # nb de certificats
+      - alert: CertificateDropDetected
+        expr: delta(vault_active_certificates[10m]) < -3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Certificate count dropped"
+          description: "Number of active certificates dropped by more than 3 in the last 10 minutes"
+
+
+
+  # ============
+  # API Alerts
+  # ============
+  - name: api_alerts
+    rules:
+
+      # erreurs HTTP
+      - alert: HighAPIErrorRate
+        expr: rate(api_requests_total{endpoint="/rotate-secret", method="POST"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "High API request rate"
+          description: "More than 5 rotation requests per second have been received"
+

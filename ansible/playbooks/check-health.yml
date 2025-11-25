@@ -5,14 +5,43 @@
 
   vars:
     vault_addr: "{{ lookup('env','VAULT_ADDR') | default('http://vault:8200') }}"
-    vault_token: "{{ lookup('env','VAULT_TOKEN') | default('root-token-demo') }}"
+    # AppRole credentials
+    vault_role_id: "{{ lookup('env', 'VAULT_ROLE_ID') | default('') }}"
+    vault_secret_id: "{{ lookup('env', 'VAULT_SECRET_ID') | default('') }}"
     api_addr: "http://api:5000/health"
     mysql_host: "mysql"
     vault_mysql_secret: "secret/data/mysql"
 
   tasks:
 
-    # 1. Check Vault
+    # =======================
+    # AppRole Authentication 
+    # ===================
+    - name: Fail if AppRole credentials missing
+      fail:
+        msg: "VAULT_ROLE_ID et VAULT_SECRET_ID sont requis"
+      when: vault_role_id | length == 0 or vault_secret_id | length == 0
+
+    - name: Authenticate via AppRole
+      uri:
+        url: "{{ vault_addr }}/v1/auth/approle/login"
+        method: POST
+        body_format: json
+        body:
+          role_id: "{{ vault_role_id }}"
+          secret_id: "{{ vault_secret_id }}"
+        status_code: [200]
+      register: approle_auth
+      no_log: yes
+
+    - name: Set Vault token from AppRole
+      set_fact:
+        vault_token: "{{ approle_auth.json.auth.client_token }}"
+
+    # ========================
+    # Health Checks
+    # ========================
+    # Check Vault
     - name: Check Vault status
       uri:
         url: "{{ vault_addr }}/v1/sys/health"
@@ -20,7 +49,7 @@
       register: vault_health
       failed_when: false
 
-    # 2. Check API
+    # Check API
     - name: Check API status
       uri:
         url: "{{ api_addr }}"
@@ -28,7 +57,7 @@
       register: api_health
       failed_when: false
 
-    # 3. Retrieve MySQL password from Vault
+    # Retrieve MySQL password from Vault
     - name: Retrieve MySQL password from Vault
       uri:
         url: "{{ vault_addr }}/v1/{{ vault_mysql_secret }}"
@@ -42,7 +71,7 @@
       set_fact:
         mysql_password: "{{ mysql_secret.json.data.data.password | default('invalid') }}"
 
-    # 4. Check MySQL
+    # Check MySQL
     - name: Check MySQL status
       shell: |
         mysqladmin -h {{ mysql_host }} -u root -p{{ mysql_password }} --skip-ssl ping 2>/dev/null
@@ -51,7 +80,7 @@
       ignore_errors: yes
       no_log: true
 
-    # 5. Display results
+    # Display results
     - name: Display health status
       debug:
         msg:
@@ -59,7 +88,7 @@
           - "API: {{ 'UP' if api_health.status == 200 else 'DOWN' }}"
           - "MySQL: {{ 'UP' if mysql_health.rc == 0 else 'DOWN' }}"
 
-    # 6. Write health report
+    # Write health report
     - name: Write health report
       copy:
         dest: "/logs/health-{{ ansible_date_time.epoch }}.txt"

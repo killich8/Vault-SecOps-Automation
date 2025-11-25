@@ -3,3 +3,5 @@ hvac==1.1.1
 flask-cors==4.0.0
 ansible-runner==2.3.3
 mysql-connector-python==8.0.33
+prometheus_client
+requests

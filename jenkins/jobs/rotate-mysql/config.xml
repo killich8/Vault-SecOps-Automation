@@ -25,7 +25,21 @@ echo "=== MySQL Password Rotation Job ==="
 echo "Started at: $(date)"
 
 export VAULT_ADDR="http://vault:8200"
-export VAULT_TOKEN="root-token-demo"
+
+# ======================
+# AppRole Authentication 
+# ======================
+if [ -z "$VAULT_ROLE_ID" ] || [ -z "$VAULT_SECRET_ID" ]; then
+    echo "ERROR: VAULT_ROLE_ID et VAULT_SECRET_ID sont requis"
+    exit 1
+fi
+
+echo "Authenticating via AppRole..."
+VAULT_TOKEN=$(vault write -field=token auth/approle/login \
+    role_id="$VAULT_ROLE_ID" \
+    secret_id="$VAULT_SECRET_ID")
+export VAULT_TOKEN
+echo "AppRole authentication successful"
 
 OLD_PASS=$(vault kv get -field=password secret/mysql)
 echo "Old password retrieved"
@@ -52,6 +66,12 @@ vault kv put secret/mysql \
 echo "Vault updated"
 
 echo "$(date -Iseconds) - Rotation by Jenkins" >> /logs/jenkins-rotations.log
+
+# Log metrics to API
+curl -s -X POST http://api:5000/metrics/log-rotation \
+  -H "Content-Type: application/json" \
+  -d '{"path":"mysql","status":"success","source":"jenkins"}'
+
 echo "=== Rotation completed successfully ==="
       ]]></command>
     </hudson.tasks.Shell>
